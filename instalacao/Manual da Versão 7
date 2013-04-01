@@ -1,0 +1,242 @@
+GUIA DE INSTALAÇÃO DO OPENERP VERSÃO 7 NO DEBIAN SQUEEZE. 
+
+Essa instalação não contempla as configurações de segurança do servidor. Você precisa de privilégios de root para efetuar essa instalação.
+
+Crie o usuário para o openerp que será o proprietário do aplicativo
+
+adduser --system --home=/opt/openerp --group openerp
+
+Adicionar o backports nos repositótio
+
+echo >> /etc/apt/sources.list deb http://backports.debian.org/debian-backports squeeze-backports main
+
+Atualizar os pacotes
+
+apt-get update
+
+Instalar o banco de Dados e suas dependências
+
+omoi~# apt-get -t squeeze-backports install postgresql-9.1
+
+Configurar o Acesso ao banco de dados.
+
+vim /etc/postgresql/9.1/main/pg_hba.conf 
+
+Altere os seguintes parâmetros:
+
+# Database administrative login by Unix domain socket
+local   all             postgres                                peer
+
+Para
+
+local   all             all                                     trust
+
+# "local" is for Unix domain socket connections only
+local   all             all                                     peer
+
+Para
+
+local   all             all                                     trust
+
+# Allow replication connections from localhost, by a user with the replication privilege.
+host    replication     postgres        127.0.0.1/32            md5
+Para
+host    replication     postgres        0.0.0.0/0             trust
+
+
+Salve o Arquivo.
+
+Alterar o arquivo de configuração do banco de dados.
+
+omoi~# vim /etc/postgresql/9.1/main/postgresql.conf
+
+
+Altere a linha
+
+# listen_addresses = 'localhost'
+
+Para 
+
+listen_addresses = '*'
+
+Salve o arquivo, saia e reinicie o bando de dados.
+
+service postgresql restart
+
+Instale as dependências necessárias
+
+aptitude install python-dateutil python-docutils python-feedparser python-gdata \
+python-jinja2 python-ldap python-libxslt1 python-lxml python-mako python-mock python-openid \
+python-psycopg2 python-psutil python-pybabel python-pychart python-pydot python-pyparsing \
+python-reportlab python-simplejson python-tz python-unittest2 python-vatnumber python-vobject \
+python-webdav python-werkzeug python-xlwt python-yaml python-zsi
+
+No debian ainda é necessário mais uma dependência que se encontra nesse link
+
+http://code.google.com/p/gdata-python-client/downloads/list
+
+Faça o download da versão recente, descompacte-a e instale
+
+wget http://gdata-python-client.googlecode.com/files/gdata-2.0.17.tar.gz
+
+tar -xf gdata-2.0.17.tar.gz
+
+cd gdata-2.0.17/
+
+python setup.py install
+
+
+Criar um usuário no banco de dados.
+
+su – postgres
+
+postgres@$ createuser --createdb --username postgres --no-createrole --no-superuser --pwprompt openerp
+Enter password for new role: ********
+Enter it again: ******
+
+Saia da conta do usuário postgres
+postgres@$ exit
+
+Instalar o Bazaar e baixar o OpenERP
+
+apt-get install bzr bzrtools -y
+
+Para criar uma chave no launchpad siga esse tutorial - https://help.launchpad.net/YourAccount/CreatingAnSSHKeyPair
+
+Acesse o diretório do OpenERP
+
+omoi~# cd /opt/openerp
+
+Faça login no launchpad para fazer dowqnload dos pacotes
+bzr launchpad-login seu login name. Caso não tenha uma conta crie através desse link - https://login.launchpad.net/+new_account
+
+Faça o download dos pacotes do OpenERP
+
+bzr branch lp:openobject-server/7.0 server
+bzr branch lp:openerp-web/7.0 web
+bzr branch lp:openobject-addons/7.0 addons
+bzr branch lp:~openerp-brazil-team/openerp.pt-br-localiz/migr-l10n-br-sale br
+
+Altere as permissões no diretório do OpenERP
+
+chown -R openerp: *
+
+Iniciar o OpenERP pela primeira vez. Acesse com um usuário comum.
+
+su - postgres
+postgres@$:
+
+Acesse o diretório do Openerp
+
+postgres@$: cd /opt/openerp/server
+
+Inicie o servidor:
+
+postgres@$:/opt/openerp/server$ ./openerp-server --db_user=openerp --db_password=sua senha --db_host=127.0.0.1 --db_port=5432 --addons-path=/opt/openerp/addons,/opt/openerp/web/addons -c openerp-server.conf --save
+
+Acesse o OpenERP: http://localhost:8069
+
+Modificar os arquivos de configuração.
+
+Faça a cópia do arquivo de inicialização do servidor e modifique seus parâmetros:
+
+cp /opt/openerp/server/debian/openerp.init /opt/openerp/server/
+
+Deixe o arquivo executável
+
+chmod u+x openerp.init
+
+Altere os parametros do arquivo
+
+vim openerp.init
+
+Altere os parâmetros conforme estão abaixo:
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin 
+DAEMON=/usr/bin/openerp-server 
+NAME=openerp-server 
+DESC=openerp-server 
+CONFIG=/etc/openerp/openerp-server.conf 
+LOGFILE=/var/log/openerp-server.log
+USER=openerp
+
+Para esses:
+PATH=/sbin:/bin:/usr/sbin:/usr/bin 
+DAEMON=/opt/openerp/server/openerp-server 
+NAME=openerp-server 
+DESC=openerp-server 
+CONFIG=/etc/openerp-server.conf 
+LOGFILE=/var/log/openerp-server.log
+USER=openerp
+
+Saia e salve o arquivo
+
+Entre no arquivo /etc/init.d/ e crie um link para o arquivo de inicialização
+
+cd /etc/init.d/
+
+ln -s /opt/openerp/server/openerp.init openerp-server
+
+Altere as permissões
+
+chmod 755 /etc/init.d/openerp-server
+chown root: /etc/init.d/openerp-server
+
+Copie o arquivo de configuração para /etc
+
+cp /opt/openerp/server/install/openerp-server.conf /etc/
+
+Altere as permissões do arquivo
+chown openerp: /etc/openerp-server.conf
+chmod 640 /etc/openerp-server.conf
+
+Altere os parâmetros do arquivo
+
+vim /etc/openerp-server.conf
+
+[options]
+; This is the password that allows database operations:
+admin_passwd = admin
+db_host = False
+db_port = False
+db_user = openerp
+db_password = ********
+
+; Log settings
+logfile = /var/log/openerp-server.log
+syslog = False
+logrotate = True
+log_level = info
+
+; Addons-path
+addons_path = /opt/openerp/addons,/opt/openerp/web/addons
+
+Para este:
+
+[options]
+; This is the password that allows database operations:
+admin_passwd = sua senha
+db_host = 127.0.0.1
+db_port = 5432
+db_user = openerp
+db_password = sua senha
+
+; Log settings
+logfile = /var/log/openerp-server.log
+syslog = False
+logrotate = True
+log_level = info
+
+; Addons-path
+addons_path = /opt/openerp/addons,/opt/openerp/web/addons,/opt/openerp/br
+
+
+Criar os arquivos de log
+
+touch /var/log/openerp-server.log
+touch /var/run/openerp-server.pid
+chown openerp /var/log/openerp-server.log
+chown openerp /var/run/openerp-server.pid
+
+Reinicie o serviço do OpenERP
+service openerp-server restart
